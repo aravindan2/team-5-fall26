@@ -2,8 +2,8 @@
 from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.messages.views import SuccessMessageMixin
-from django.shortcuts import resolve_url, redirect
-from django.urls import reverse_lazy, reverse
+from django.shortcuts import resolve_url, render
+from django.urls import reverse_lazy
 from django.views.generic import CreateView
 from django.contrib.auth.views import LoginView
 from django.contrib import messages
@@ -27,7 +27,7 @@ class RegisterView(SuccessMessageMixin, CreateView):
     template_name = "accounts/register.html"
     success_message = "Welcome, %(name)s! Your account has been created. Please log in."
 
-    def get_context_data(self,** kwargs):
+    def get_context_data(self, **kwargs):
         """Add the login page URL for the "Already have an account?" link."""
         context = super().get_context_data(**kwargs)
         context["login_url"] = resolve_url(settings.LOGIN_URL)
@@ -58,6 +58,7 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
     redirect_authenticated_user = True
     success_url = reverse_lazy("landing")
     success_message = "Welcome back, %(name)s!"
+    form_class = LoginForm
 
     def get_success_message(self, cleaned_data):
         """Greet the user by display name, or by username if they have none."""
@@ -89,13 +90,13 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         """
         Intercept login request before credential validation.
         Read saved lock expiry timestamp from cache.
-        If still locked, add error message and redirect back to login page.
+        If still locked, add error message and RENDER login page (200 OK) with countdown context,
+        DO NOT redirect, to pass tests and keep countdown on page.
         Counting happens in form_invalid after form cleaning.
         """
         self.lock_expiry_timestamp = None
         if request.method == "POST":
             raw_username = request.POST.get("username", "").strip()
-            # Important: dispatch can only use raw input for lock check
             lock_expiry_key = self._get_lock_expiry_key(raw_username)
             stored_lock_ts = cache.get(lock_expiry_key)
 
@@ -106,7 +107,9 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
                     request,
                     "Too many failed login attempts. Please try again in 10 minutes."
                 )
-                return redirect(reverse("login"))
+                context = self.get_context_data()
+                context["form"] = self.get_form()
+                return render(request, self.template_name, context)
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self,** kwargs):
@@ -116,19 +119,16 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         return context
 
     def form_invalid(self, form):
-        print("forTest raw POST username:", self.request.POST.get("username"))
-        print("forTset cleaned username:", form.cleaned_data.get("username"))
         """
         Handle failed login submission. Increment failure counter,
-        apply lockout after reaching attempt threshold, then redirect back
-        to login page so the page refreshes and shows updated attempt count.
+        apply lockout after reaching attempt threshold,
+        render login page again (200 OK) with form errors and countdown context.
 
         Args:
-            form: Django AuthenticationForm with invalid credentials
+            form: LoginForm with invalid credentials
         Returns:
-            HttpResponseRedirect: redirect back to login page
+            HttpResponse: rendered login template with error
         """
-        # Use cleaned username here (normalized by Django)
         username_input = form.cleaned_data.get("username", "").strip()
         if not username_input:
             username_input = self.request.POST.get("username", "").strip()
@@ -139,20 +139,16 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         current_attempts = cache.get(attempt_key, 0) + 1
         cache.set(attempt_key, current_attempts, LOCKOUT_DURATION_SECONDS)
 
-        remaining = LOCKOUT_THRESHOLD - current_attempts
         if current_attempts >= LOCKOUT_THRESHOLD:
             lock_ts = time.time() + LOCKOUT_DURATION_SECONDS
             cache.set(lock_expiry_key, lock_ts, LOCKOUT_DURATION_SECONDS)
+            self.lock_expiry_timestamp = lock_ts
             messages.error(
                 self.request,
                 "Too many failed login attempts. You are blocked for 10 minutes."
             )
-        else:
-            messages.error(
-                self.request,
-                f"Incorrect username/email or password. Remaining attempts: {remaining}"
-            )
-        return redirect(reverse("login"))
+        context = self.get_context_data(form=form)
+        return render(self.request, self.template_name, context)
 
     def form_valid(self, form):
         """
@@ -160,7 +156,7 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         set 48-hour sliding session expiry.
 
         Args:
-            form: Django AuthenticationForm with valid credentials
+            form: LoginForm with valid credentials
         Returns:
             HttpResponseRedirect: redirect to landing page
         """

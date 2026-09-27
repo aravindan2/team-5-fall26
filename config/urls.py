@@ -20,9 +20,9 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="home.html"), name="home"),
+    path("", TemplateView.as_view(template_name="accounts/home.html"), name="home"),
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
     # temporarily added landing page, name="landing" to solve reverse error
-    path("", TemplateView.as_view(template_name="landing.html"), name="landing"),
+    path("", TemplateView.as_view(template_name="accounts/landing.html"), name="landing"),
 ]

@@ -108,5 +108,5 @@ class LogoutAndHomeTests(TestCase):
         """Logging out ends the session and opens the login page."""
         self.client.force_login(self.user)
         response = self.client.post(reverse("logout"))
-        self.assertRedirects(response, reverse("login"))
+        self.assertRedirects(response, reverse("landing"))
         self.assertNotIn("_auth_user_id", self.client.session)

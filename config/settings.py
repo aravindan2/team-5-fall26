@@ -48,7 +48,13 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
 ]
+
+# Session Settings for sliding 48-hour expiration
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 48 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 
 ROOT_URLCONF = "config.urls"
 
@@ -152,5 +158,3 @@ LOGIN_URL = "login"
 # Landing page not yet merged into develop.
 # This redirect will function after the landing page PR is merged.
 LOGIN_REDIRECT_URL = "landing"
-SESSION_EXPIRE_AT_BROWSER_CLOSE = False
-SESSION_COOKIE_AGE = 48 * 60 * 60

@@ -1,18 +1,101 @@
-{% extends "base.html" %}
+{% extends "accounts/base.html" %}
 
-{% block title %}Log in{% endblock %}
+{% block title %}Log In{% endblock %}
 
 {% block content %}
-  <h1>Log in</h1>
-  <form method="post">
+<h1>Log In to Your Account</h1>
+
+<div id="countdown"></div>
+
+<form method="POST" id="loginForm">
     {% csrf_token %}
     {{ form }}
     <input type="hidden" name="next" value="{{ next }}">
-    <div class="actions">
-      <button type="submit" class="button primary">Log in</button>
-      <a class="button" href="{% url 'password_reset' %}">Forgot password?</a>
+
+    <button type="submit" id="submitBtn" class="button primary">Log In</button>
+    <div class="loading" style="display: none; margin-top:0.6rem; color:#444; align-items:center; gap:0.5rem;">
+        <span class="spinner"></span>
+        <span>Logging in...</span>
     </div>
-  </form>
-  <p>Don't have an account?</p>
-  <a class="button" href="{% url 'register' %}">Create an account</a>
+</form>
+
+<div class="actions" style="margin-top:1.8rem; flex-direction:column; gap:0.8rem;">
+    <a class="button" href="{% url 'password_reset' %}">Forgot password?</a>
+    <a class="button" href="{% url 'register' %}">Create New Account</a>
+</div>
+
+<style>
+    .loading {
+        display: none;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    #loginForm.loading-state .loading {
+        display: flex;
+    }
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ddd;
+        border-top: 2px solid #333;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    #countdown {
+        color: #a40e26;
+        font-weight: bold;
+        margin: 0.8rem 0;
+    }
+</style>
+
+<script>
+const lockExpiry = {{ lock_expiry|default:"null" }};
+const countdownElement = document.getElementById("countdown");
+const loginForm = document.getElementById("loginForm");
+const submitButton = document.getElementById("submitBtn");
+
+/**
+ * Format remaining seconds into MM:SS
+ * @param {number} seconds - remaining time in seconds
+ * @returns {string} formatted time string
+ */
+function formatTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const mStr = String(mins).padStart(2, '0');
+    const sStr = String(secs).padStart(2, '0');
+    return `${mStr}:${sStr}`;
+}
+
+/**
+ * Update countdown timer every second
+ * When timer hits 0, unlock form and hide countdown
+ */
+function startCountdown() {
+    if (!lockExpiry) return;
+    function tick() {
+        const now = Date.now() / 1000;
+        const remaining = lockExpiry - now;
+        if (remaining <= 0) {
+            countdownElement.textContent = "";
+            submitButton.disabled = false;
+            return;
+        }
+        submitButton.disabled = true;
+        countdownElement.textContent = `Please wait ${formatTime(remaining)} before retrying.`;
+        setTimeout(tick, 1000);
+    }
+    tick();
+}
+
+loginForm.addEventListener("submit", () => {
+    loginForm.classList.add("loading-state");
+});
+
+window.onload = startCountdown;
+</script>
 {% endblock %}
