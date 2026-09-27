@@ -140,3 +140,4 @@ LOGIN_URL = "login"
 # This redirect will function after the landing page PR is merged.
 LOGIN_REDIRECT_URL = "landing"
 SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+SESSION_COOKIE_AGE = 48 * 60 * 60

@@ -9,11 +9,17 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.urls import reverse_lazy
 import time
+from django.shortcuts import resolve_url, redirect
+from django.urls import reverse
 
 from .forms import RegistrationForm
 
-LOCKOUT_DURATION_SECONDS = 10 * 60
-
+# Lockout configuration
+LOCKOUT_THRESHOLD = 5
+LOCKOUT_DURATION_SECONDS = 10 * 60  # 10 minutes lockout
+CACHE_KEY_ATTEMPTS = "login_attempts:"
+CACHE_KEY_LOCK_EXPIRY = "login_lock_expiry:"
+SESSION_LIFESPAN_SECONDS = 48 * 60 * 60  # 48 hours idle sliding expiry
 
 class RegisterView(SuccessMessageMixin, CreateView):
     """Create an account, then send the new user to the login page."""
@@ -37,22 +43,16 @@ class RegisterView(SuccessMessageMixin, CreateView):
         return self.success_message % {"name": self.object.get_display_name()}
 
 
-LOCKOUT_THRESHOLD = 5
-LOCKOUT_DURATION_SECONDS = 10 * 60  # 10 minutes lockout
-CACHE_KEY_ATTEMPTS = "login_attempts:"
-CACHE_KEY_LOCK = "login_locked:"
-SESSION_LIFESPAN_SECONDS = 48 * 60 * 60  # 48 hours idle expiry
-
-
 class CustomLoginView(LoginView):
     """
     Custom login view supporting username/email login, brute force lockout,
-    and 48-hour idle session expiration.
+    and 48-hour sliding idle session expiration.
 
     After successful login, redirects to landing page (landing route).
     After 5 consecutive failed login attempts, blocks login for 10 minutes.
-    Session expires after 48 hours of user inactivity.
-    Passes lockout expiry timestamp to template for frontend countdown.
+    Lock expiry timestamp is stored in cache so countdown persists on page refresh.
+    Session expires after 48 hours of user inactivity (sliding refresh on every request).
+    Passes lock expiry timestamp to template for frontend countdown.
     """
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
@@ -69,80 +69,91 @@ class CustomLoginView(LoginView):
         """
         return f"{CACHE_KEY_ATTEMPTS}{login_identifier}"
 
-    def _get_lock_key(self, login_identifier: str) -> str:
+    def _get_lock_expiry_key(self, login_identifier: str) -> str:
         """
-        Generate cache key to mark an identifier as locked out.
+        Generate cache key that stores the absolute lock expiry timestamp.
 
         Args:
             login_identifier: username or email entered in login form
         Returns:
-            prefixed lock cache key string
+            prefixed cache key string
         """
-        return f"{CACHE_KEY_LOCK}{login_identifier}"
+        return f"{CACHE_KEY_LOCK_EXPIRY}{login_identifier}"
 
     def dispatch(self, request, *args, **kwargs):
         """
-        Intercept POST login request before credential validation.
-        If the identifier is locked out, show error and skip password checking.
-        Store lock expiry timestamp in request for template rendering.
+        Intercept login request before credential validation.
+        Read saved lock expiry timestamp from cache.
+        If still locked, add error message and redirect back to login page.
+        Counting happens in form_invalid after form cleaning.
         """
         self.lock_expiry_timestamp = None
         if request.method == "POST":
-            username_input = request.POST.get("username", "").strip()
-            lock_key = self._get_lock_key(username_input)
-            lock_value = cache.get(lock_key)
-            if lock_value:
-                self.lock_expiry_timestamp = time.time() + LOCKOUT_DURATION_SECONDS
+            raw_username = request.POST.get("username", "").strip()
+            # Important: dispatch can only use raw input for lock check
+            lock_expiry_key = self._get_lock_expiry_key(raw_username)
+            stored_lock_ts = cache.get(lock_expiry_key)
+
+            now = time.time()
+            if stored_lock_ts and stored_lock_ts > now:
+                self.lock_expiry_timestamp = stored_lock_ts
                 messages.error(
                     request,
                     "Too many failed login attempts. Please try again in 10 minutes."
                 )
-                return super(LoginView, self).render_to_response(self.get_context_data())
+                return redirect(reverse("login"))
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self,** kwargs):
-        """
-        Pass lock expiry timestamp to template context for frontend countdown.
-        """
+        """Pass lock expiry timestamp to template context for frontend countdown."""
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
         return context
 
     def form_invalid(self, form):
+        print("forTest raw POST username:", self.request.POST.get("username"))
+        print("forTset cleaned username:", form.cleaned_data.get("username"))
+
         """
-        Handle failed login submission. Increment failure counter and apply lockout.
-        Set lock expiry timestamp for frontend countdown when threshold is reached.
+        Handle failed login submission. Increment failure counter,
+        apply lockout after reaching attempt threshold, then redirect back
+        to login page so the page refreshes and shows updated attempt count.
 
         Args:
             form: Django AuthenticationForm with invalid credentials
         Returns:
-            HttpResponse: rendered login page with error message
+            HttpResponseRedirect: redirect back to login page
         """
+        # Use cleaned username here (normalized by Django)
         username_input = form.cleaned_data.get("username", "").strip()
+        if not username_input:
+            username_input = self.request.POST.get("username", "").strip()
+
         attempt_key = self._get_attempt_key(username_input)
-        lock_key = self._get_lock_key(username_input)
+        lock_expiry_key = self._get_lock_expiry_key(username_input)
 
         current_attempts = cache.get(attempt_key, 0) + 1
         cache.set(attempt_key, current_attempts, LOCKOUT_DURATION_SECONDS)
 
+        remaining = LOCKOUT_THRESHOLD - current_attempts
         if current_attempts >= LOCKOUT_THRESHOLD:
-            cache.set(lock_key, True, LOCKOUT_DURATION_SECONDS)
-            self.lock_expiry_timestamp = time.time() + LOCKOUT_DURATION_SECONDS
+            lock_ts = time.time() + LOCKOUT_DURATION_SECONDS
+            cache.set(lock_expiry_key, lock_ts, LOCKOUT_DURATION_SECONDS)
             messages.error(
                 self.request,
-                "Too many failed login attempts. Please try again in 10 minutes."
+                "Too many failed login attempts. You are blocked for 10 minutes."
             )
         else:
-            remaining = LOCKOUT_THRESHOLD - current_attempts
             messages.error(
                 self.request,
                 f"Incorrect username/email or password. Remaining attempts: {remaining}"
             )
-        return super().form_invalid(form)
+        return redirect(reverse("login"))
 
     def form_valid(self, form):
         """
-        Handle successful login. Clear failure counter and set 48h idle session expiry.
+        Handle successful login. Clear failure counter and lock record,
+        set 48-hour sliding session expiry.
 
         Args:
             form: Django AuthenticationForm with valid credentials
@@ -151,10 +162,9 @@ class CustomLoginView(LoginView):
         """
         username_input = form.cleaned_data.get("username")
         attempt_key = self._get_attempt_key(username_input)
-        lock_key = self._get_lock_key(username_input)
+        lock_expiry_key = self._get_lock_expiry_key(username_input)
 
         cache.delete(attempt_key)
-        cache.delete(lock_key)
-        # Session expires 48 hours after last user activity
+        cache.delete(lock_expiry_key)
         self.request.session.set_expiry(SESSION_LIFESPAN_SECONDS)
         return super().form_valid(form)
