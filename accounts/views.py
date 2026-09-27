@@ -1,18 +1,16 @@
 """Views for user account pages."""
 from django.conf import settings
+from django.contrib.auth import views as auth_views
 from django.contrib.messages.views import SuccessMessageMixin
-from django.shortcuts import resolve_url
+from django.shortcuts import resolve_url, redirect
+from django.urls import reverse_lazy, reverse
 from django.views.generic import CreateView
-
 from django.contrib.auth.views import LoginView
 from django.contrib import messages
 from django.core.cache import cache
-from django.urls import reverse_lazy
 import time
-from django.shortcuts import resolve_url, redirect
-from django.urls import reverse
 
-from .forms import RegistrationForm
+from .forms import LoginForm, RegistrationForm
 
 # Lockout configuration
 LOCKOUT_THRESHOLD = 5
@@ -21,6 +19,7 @@ CACHE_KEY_ATTEMPTS = "login_attempts:"
 CACHE_KEY_LOCK_EXPIRY = "login_lock_expiry:"
 SESSION_LIFESPAN_SECONDS = 48 * 60 * 60  # 48 hours idle sliding expiry
 
+
 class RegisterView(SuccessMessageMixin, CreateView):
     """Create an account, then send the new user to the login page."""
 
@@ -28,7 +27,7 @@ class RegisterView(SuccessMessageMixin, CreateView):
     template_name = "accounts/register.html"
     success_message = "Welcome, %(name)s! Your account has been created. Please log in."
 
-    def get_context_data(self, **kwargs):
+    def get_context_data(self,** kwargs):
         """Add the login page URL for the "Already have an account?" link."""
         context = super().get_context_data(**kwargs)
         context["login_url"] = resolve_url(settings.LOGIN_URL)
@@ -43,7 +42,7 @@ class RegisterView(SuccessMessageMixin, CreateView):
         return self.success_message % {"name": self.object.get_display_name()}
 
 
-class CustomLoginView(LoginView):
+class CustomLoginView(SuccessMessageMixin, LoginView):
     """
     Custom login view supporting username/email login, brute force lockout,
     and 48-hour sliding idle session expiration.
@@ -53,10 +52,16 @@ class CustomLoginView(LoginView):
     Lock expiry timestamp is stored in cache so countdown persists on page refresh.
     Session expires after 48 hours of user inactivity (sliding refresh on every request).
     Passes lock expiry timestamp to template for frontend countdown.
+    Shows welcome message after successful login.
     """
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
     success_url = reverse_lazy("landing")
+    success_message = "Welcome back, %(name)s!"
+
+    def get_success_message(self, cleaned_data):
+        """Greet the user by display name, or by username if they have none."""
+        return self.success_message % {"name": self.request.user.get_display_name()}
 
     def _get_attempt_key(self, login_identifier: str) -> str:
         """
@@ -113,7 +118,6 @@ class CustomLoginView(LoginView):
     def form_invalid(self, form):
         print("forTest raw POST username:", self.request.POST.get("username"))
         print("forTset cleaned username:", form.cleaned_data.get("username"))
-
         """
         Handle failed login submission. Increment failure counter,
         apply lockout after reaching attempt threshold, then redirect back
@@ -168,3 +172,28 @@ class CustomLoginView(LoginView):
         cache.delete(lock_expiry_key)
         self.request.session.set_expiry(SESSION_LIFESPAN_SECONDS)
         return super().form_valid(form)
+
+
+class PasswordResetView(auth_views.PasswordResetView):
+    """Ask for an email address and send a password reset link to it.
+    The same confirmation page is shown whether or not the address belongs to
+    an account, so the form can't be used to find out who is registered.
+    """
+    template_name = "accounts/password_reset_form.html"
+    email_template_name = "accounts/password_reset_email.txt"
+    subject_template_name = "accounts/password_reset_subject.txt"
+    success_url = reverse_lazy("password_reset_done")
+
+
+class PasswordResetDoneView(auth_views.PasswordResetDoneView):
+    """Tell the user to check their email for the reset link."""
+    template_name = "accounts/password_reset_done.html"
+
+
+class PasswordResetConfirmView(
+    SuccessMessageMixin, auth_views.PasswordResetConfirmView
+):
+    """Let the user choose a new password, then send them to the login page."""
+    template_name = "accounts/password_reset_confirm.html"
+    success_url = reverse_lazy("login")
+    success_message = "Your password has been reset. You can now log in."

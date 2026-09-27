@@ -45,6 +45,12 @@ class RegisterViewTests(TestCase):
         login_path = reverse("login")
         self.assertContains(response, f'href="{login_path}"')
 
+    def test_login_link_opens_the_login_page(self):
+        """The "Log in" link on the registration page leads to a working page."""
+        response = self.client.get(self.client.get(self.url).context["login_url"])
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "accounts/login.html")
+
     def test_valid_submission_creates_account_and_redirects_to_login(self):
         """A valid submission saves the user and redirects with a success message."""
         response = self.client.post(self.url, self.data)
@@ -120,7 +126,8 @@ class CustomLoginViewTests(TestCase):
         )
         cache.clear()
         self.attempt_key_prefix = "login_attempts:"
-        self.lock_key_prefix = "login_locked:"
+        # Match the constant defined in views.py
+        self.lock_key_prefix = "login_lock_expiry:"
 
     def test_login_with_username_success(self):
         """User can log in by providing their username and correct password."""
