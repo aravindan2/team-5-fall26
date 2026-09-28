@@ -1,16 +1,31 @@
 """Views for user account pages."""
+
 from django.conf import settings
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import resolve_url, render
 from django.urls import reverse_lazy
-from django.views.generic import CreateView
+from django.views.generic import CreateView, UpdateView
 from django.contrib.auth.views import LoginView
-from django.contrib import messages
 from django.core.cache import cache
 import time
 
-from .forms import LoginForm, RegistrationForm
+from .forms import AccountSettingsForm, LoginForm, RegistrationForm
+
+
+class AccountSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+    """Allow signed-in users to edit only their own account's profile."""
+
+    form_class = AccountSettingsForm
+    template_name = "accounts/settings.html"
+    success_url = reverse_lazy("account_settings")
+    success_message = "Your account settings have been saved."
+
+    def get_object(self, queryset=None):
+        """Select the account from the session, never from submitted identifiers."""
+        return self.request.user
+
 
 # Lockout configuration
 LOCKOUT_THRESHOLD = 5
@@ -56,6 +71,7 @@ class CustomLoginView(LoginView):
     Passes lock expiry timestamp and locked login identifier to template for frontend countdown.
     Welcome message is shown on landing page AFTER login, not on login page.
     """
+
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
     success_url = reverse_lazy("landing")
@@ -112,7 +128,7 @@ class CustomLoginView(LoginView):
                 return render(request, self.template_name, context)
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self,** kwargs):
+    def get_context_data(self, **kwargs):
         """Pass lock expiry timestamp and locked identifier to template context for frontend countdown."""
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
@@ -180,6 +196,7 @@ class PasswordResetView(auth_views.PasswordResetView):
     The same confirmation page is shown whether or not the address belongs to
     an account, so the form can't be used to find out who is registered.
     """
+
     template_name = "accounts/password_reset_form.html"
     email_template_name = "accounts/password_reset_email.txt"
     subject_template_name = "accounts/password_reset_subject.txt"
@@ -188,6 +205,7 @@ class PasswordResetView(auth_views.PasswordResetView):
 
 class PasswordResetDoneView(auth_views.PasswordResetDoneView):
     """Tell the user to check their email for the reset link."""
+
     template_name = "accounts/password_reset_done.html"
 
 
@@ -195,6 +213,7 @@ class PasswordResetConfirmView(
     SuccessMessageMixin, auth_views.PasswordResetConfirmView
 ):
     """Let the user choose a new password, then send them to the login page."""
+
     template_name = "accounts/password_reset_confirm.html"
     success_url = reverse_lazy("login")
     success_message = "Your password has been reset. You can now log in."

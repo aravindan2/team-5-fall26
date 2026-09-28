@@ -1,4 +1,5 @@
 """Tests for the login, logout and home pages."""
+
 from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
@@ -67,9 +68,7 @@ class LoginViewTests(TestCase):
             self.url, {"username": "alice", "password": "Wrong-Passphrase!"}
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response, "Invalid credentials."
-        )
+        self.assertContains(response, "Invalid credentials.")
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_logged_in_user_is_sent_home(self):
