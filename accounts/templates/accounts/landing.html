@@ -26,6 +26,14 @@
             text-decoration:none;
             border-radius:6px;
         }
+        /* Animation for welcome heading */
+        .welcome-heading {
+            animation: fadeIn 0.8s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -34,7 +42,7 @@
         {% csrf_token %}
         <button type="submit" class="logout" style="border:none;cursor:pointer;">Log Out</button>
     </form>
-    <h1>Welcome back, {{ user.display_name|default:user.username }}</h1>
+    <h1 class="welcome-heading">Welcome, {{ user.display_name|default:user.username }}!</h1>
     <h2>Your Saved Events & Personal Plans</h2>
     <div class="card">
         <p>Event placeholder: NYC events, Friday 2PM</p>

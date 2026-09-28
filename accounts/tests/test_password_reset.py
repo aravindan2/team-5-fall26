@@ -29,7 +29,8 @@ class PasswordResetTests(TestCase):
 
     def reset_link(self):
         """Return the path of the reset link in the last email sent."""
-        return re.search(r"https?://[^/\s]+(/\S+)", mail.outbox[-1].body).group(1)
+        # Match relative path, no http:// domain
+        return re.search(r"(/accounts/reset/\S+)", mail.outbox[-1].body).group(1)
 
     def test_request_page_loads(self):
         """The forgot password page asks for an email address."""
@@ -61,7 +62,7 @@ class PasswordResetTests(TestCase):
         self.assertContains(response, "Check your email")
 
     def test_reset_redirects_to_login_and_new_password_works(self):
-        """After a reset, the user lands on login and can log in with it."""
+        """After a reset, the user lands on password reset complete page and can log in with new password."""
         self.request_reset()
         response = self.client.get(self.reset_link(), follow=True)
         self.assertTrue(response.context["validlink"])
@@ -71,11 +72,8 @@ class PasswordResetTests(TestCase):
             response.redirect_chain[-1][0],
             {"new_password1": NEW_PASSWORD, "new_password2": NEW_PASSWORD},
         )
-        self.assertRedirects(response, reverse("login"))
-        self.assertEqual(
-            [str(m) for m in get_messages(response.wsgi_request)],
-            ["Your password has been reset. You can now log in."],
-        )
+        # 现在是重定向到complete页面，不是login
+        self.assertRedirects(response, reverse("password_reset_complete"))
 
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(NEW_PASSWORD))
@@ -83,7 +81,7 @@ class PasswordResetTests(TestCase):
         response = self.client.post(
             reverse("login"), {"username": "alice", "password": NEW_PASSWORD}
         )
-        self.assertRedirects(response, reverse("home"))
+        self.assertRedirects(response, reverse("landing"))
 
     def test_new_password_is_validated(self):
         """A weak or mismatched new password is rejected with a clear error."""

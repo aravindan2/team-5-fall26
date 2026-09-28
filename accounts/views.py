@@ -28,7 +28,9 @@ class RegisterView(SuccessMessageMixin, CreateView):
     success_message = "Welcome, %(name)s! Your account has been created. Please log in."
 
     def get_context_data(self, **kwargs):
-        """Add the login page URL for the "Already have an account?" link."""
+        """
+        Pass login page URL to template for "Already have an account?" link.
+        """
         context = super().get_context_data(**kwargs)
         context["login_url"] = resolve_url(settings.LOGIN_URL)
         return context
@@ -42,7 +44,7 @@ class RegisterView(SuccessMessageMixin, CreateView):
         return self.success_message % {"name": self.object.get_display_name()}
 
 
-class CustomLoginView(SuccessMessageMixin, LoginView):
+class CustomLoginView(LoginView):
     """
     Custom login view supporting username/email login, brute force lockout,
     and 48-hour sliding idle session expiration.
@@ -51,18 +53,18 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
     After 5 consecutive failed login attempts, blocks login for 10 minutes.
     Lock expiry timestamp is stored in cache so countdown persists on page refresh.
     Session expires after 48 hours of user inactivity (sliding refresh on every request).
-    Passes lock expiry timestamp to template for frontend countdown.
-    Shows welcome message after successful login.
+    Passes lock expiry timestamp and locked login identifier to template for frontend countdown.
+    Welcome message is shown on landing page AFTER login, not on login page.
     """
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
     success_url = reverse_lazy("landing")
-    success_message = "Welcome back, %(name)s!"
     form_class = LoginForm
 
-    def get_success_message(self, cleaned_data):
-        """Greet the user by display name, or by username if they have none."""
-        return self.success_message % {"name": self.request.user.get_display_name()}
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.lock_expiry_timestamp = None
+        self.locked_identifier = None
 
     def _get_attempt_key(self, login_identifier: str) -> str:
         """
@@ -90,11 +92,10 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         """
         Intercept login request before credential validation.
         Read saved lock expiry timestamp from cache.
-        If still locked, add error message and RENDER login page (200 OK) with countdown context,
-        DO NOT redirect, to pass tests and keep countdown on page.
-        Counting happens in form_invalid after form cleaning.
+        If still locked, render login page with countdown context.
         """
         self.lock_expiry_timestamp = None
+        self.locked_identifier = None
         if request.method == "POST":
             raw_username = request.POST.get("username", "").strip()
             lock_expiry_key = self._get_lock_expiry_key(raw_username)
@@ -103,31 +104,48 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
             now = time.time()
             if stored_lock_ts and stored_lock_ts > now:
                 self.lock_expiry_timestamp = stored_lock_ts
-                messages.error(
-                    request,
-                    "Too many failed login attempts. Please try again in 10 minutes."
-                )
+                self.locked_identifier = raw_username
                 context = self.get_context_data()
                 context["form"] = self.get_form()
+                # Pass locked account identifier to template
+                context["locked_identifier"] = self.locked_identifier
                 return render(request, self.template_name, context)
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self,** kwargs):
-        """Pass lock expiry timestamp to template context for frontend countdown."""
+        """Pass lock expiry timestamp and locked identifier to template context for frontend countdown."""
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
+        context["locked_identifier"] = self.locked_identifier
         return context
+
+    def form_valid(self, form):
+        """
+        Run when login credentials are correct.
+        Clear failed attempt counter and lock record from cache.
+        Set sliding session timeout for 48 hours.
+        """
+        # Clear failed attempts and lock key for this identifier
+        username_input = form.cleaned_data.get("username", "").strip()
+        attempt_key = self._get_attempt_key(username_input)
+        lock_expiry_key = self._get_lock_expiry_key(username_input)
+        cache.delete(attempt_key)
+        cache.delete(lock_expiry_key)
+
+        # 48h sliding session expiry
+        self.request.session.set_expiry(SESSION_LIFESPAN_SECONDS)
+        return super().form_valid(form)
 
     def form_invalid(self, form):
         """
-        Handle failed login submission. Increment failure counter,
-        apply lockout after reaching attempt threshold,
-        render login page again (200 OK) with form errors and countdown context.
+        Handle failed login submission.
+        Increment failure counter and apply lockout after reaching threshold.
+        Pass remaining attempts, lock expiry and locked identifier to the template.
 
         Args:
             form: LoginForm with invalid credentials
         Returns:
-            HttpResponse: rendered login template with error
+            HttpResponse: rendered login page with error context
         """
         username_input = form.cleaned_data.get("username", "").strip()
         if not username_input:
@@ -139,35 +157,22 @@ class CustomLoginView(SuccessMessageMixin, LoginView):
         current_attempts = cache.get(attempt_key, 0) + 1
         cache.set(attempt_key, current_attempts, LOCKOUT_DURATION_SECONDS)
 
+        remaining_attempts = LOCKOUT_THRESHOLD - current_attempts
+
         if current_attempts >= LOCKOUT_THRESHOLD:
             lock_ts = time.time() + LOCKOUT_DURATION_SECONDS
             cache.set(lock_expiry_key, lock_ts, LOCKOUT_DURATION_SECONDS)
             self.lock_expiry_timestamp = lock_ts
-            messages.error(
-                self.request,
-                "Too many failed login attempts. You are blocked for 10 minutes."
-            )
+            self.locked_identifier = username_input
+            remaining_attempts = 0
+        else:
+            self.lock_expiry_timestamp = None
+            self.locked_identifier = None
+
         context = self.get_context_data(form=form)
+        context["remaining_attempts"] = remaining_attempts
+        context["current_attempts"] = current_attempts
         return render(self.request, self.template_name, context)
-
-    def form_valid(self, form):
-        """
-        Handle successful login. Clear failure counter and lock record,
-        set 48-hour sliding session expiry.
-
-        Args:
-            form: LoginForm with valid credentials
-        Returns:
-            HttpResponseRedirect: redirect to landing page
-        """
-        username_input = form.cleaned_data.get("username")
-        attempt_key = self._get_attempt_key(username_input)
-        lock_expiry_key = self._get_lock_expiry_key(username_input)
-
-        cache.delete(attempt_key)
-        cache.delete(lock_expiry_key)
-        self.request.session.set_expiry(SESSION_LIFESPAN_SECONDS)
-        return super().form_valid(form)
 
 
 class PasswordResetView(auth_views.PasswordResetView):
