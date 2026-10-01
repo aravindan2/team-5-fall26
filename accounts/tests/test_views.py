@@ -1,4 +1,5 @@
 """Tests for the registration page and custom login page."""
+
 import time
 from django.conf import settings
 from django.contrib.messages import get_messages
@@ -56,9 +57,7 @@ class RegisterViewTests(TestCase):
         """A valid submission saves the user and redirects with a success message."""
         response = self.client.post(self.url, self.data)
         expected_url = reverse("login")
-        self.assertRedirects(
-            response, expected_url, fetch_redirect_response=False
-        )
+        self.assertRedirects(response, expected_url, fetch_redirect_response=False)
         user = User.objects.get(username="newuser")
         self.assertEqual(user.email, "newuser@example.com")
         self.assertEqual(user.display_name, "New User")
@@ -116,14 +115,13 @@ class CustomLoginViewTests(TestCase):
     Covers username/email login, brute force lockout, lock expiry timestamp context,
     session expiry, and logout functionality.
     """
+
     def setUp(self):
         """Initialize test user, login url and clear cache before each test."""
         self.login_url = reverse("login")
         self.logout_url = reverse("logout")
         self.test_user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password=PASSWORD
+            username="testuser", email="test@example.com", password=PASSWORD
         )
         cache.clear()
         self.attempt_key_prefix = "login_attempts:"
@@ -133,9 +131,7 @@ class CustomLoginViewTests(TestCase):
     def test_login_with_username_success(self):
         """User can log in by providing their username and correct password."""
         response = self.client.post(
-            self.login_url,
-            {"username": "testuser", "password": PASSWORD},
-            follow=True
+            self.login_url, {"username": "testuser", "password": PASSWORD}, follow=True
         )
         self.assertTrue(response.context["user"].is_authenticated)
 
@@ -144,15 +140,14 @@ class CustomLoginViewTests(TestCase):
         response = self.client.post(
             self.login_url,
             {"username": "test@example.com", "password": PASSWORD},
-            follow=True
+            follow=True,
         )
         self.assertTrue(response.context["user"].is_authenticated)
 
     def test_failed_attempt_increments_counter(self):
         """A single failed login attempt increments the cache counter with correct key."""
         self.client.post(
-            self.login_url,
-            {"username": "testuser", "password": "WrongPass"}
+            self.login_url, {"username": "testuser", "password": "WrongPass"}
         )
         stored_count = cache.get(f"{self.attempt_key_prefix}testuser")
         self.assertEqual(stored_count, 1)
@@ -192,8 +187,7 @@ class CustomLoginViewTests(TestCase):
         cache.set(lock_key, future_ts, 600)
 
         response = self.client.post(
-            reverse("login"),
-            {"username": "testuser", "password": "wrongpass"}
+            reverse("login"), {"username": "testuser", "password": "wrongpass"}
         )
         # Should render login page (200), not redirect
         self.assertEqual(response.status_code, 200)
@@ -204,19 +198,13 @@ class CustomLoginViewTests(TestCase):
         """A successful login clears the stored failed attempt counter and lock key."""
         wrong_payload = {"username": "testuser", "password": "WrongPass"}
         self.client.post(self.login_url, wrong_payload)
-        self.client.post(
-            self.login_url,
-            {"username": "testuser", "password": PASSWORD}
-        )
+        self.client.post(self.login_url, {"username": "testuser", "password": PASSWORD})
         self.assertIsNone(cache.get(f"{self.attempt_key_prefix}testuser"))
         self.assertIsNone(cache.get(f"{self.lock_key_prefix}testuser"))
 
     def test_session_expiry_set_to_48_hours(self):
         """Successful login sets session expiry to 48 hours of inactivity."""
-        self.client.post(
-            self.login_url,
-            {"username": "testuser", "password": PASSWORD}
-        )
+        self.client.post(self.login_url, {"username": "testuser", "password": PASSWORD})
         session = self.client.session
         self.assertEqual(session.get_expiry_age(), 48 * 60 * 60)
 

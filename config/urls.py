@@ -1,4 +1,4 @@
-""" URL configuration for config project.
+"""URL configuration for config project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -13,15 +13,20 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+
 from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
 urlpatterns = [
     # Landing page at root "/" (login success target)
-    path("", TemplateView.as_view(template_name="accounts/landing.html"), name="landing"),
+    path(
+        "", TemplateView.as_view(template_name="accounts/landing.html"), name="landing"
+    ),
     # Move home page to /home/, avoid conflicting with root
-    path("home/", TemplateView.as_view(template_name="accounts/home.html"), name="home"),
+    path(
+        "home/", TemplateView.as_view(template_name="accounts/home.html"), name="home"
+    ),
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
 ]

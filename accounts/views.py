@@ -1,4 +1,5 @@
 """Views for user account pages."""
+
 from django.conf import settings
 from django.contrib.auth import views as auth_views
 from django.contrib.messages.views import SuccessMessageMixin
@@ -56,6 +57,7 @@ class CustomLoginView(LoginView):
     Passes lock expiry timestamp and locked login identifier to template for frontend countdown.
     Welcome message is shown on landing page AFTER login, not on login page.
     """
+
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
     success_url = reverse_lazy("landing")
@@ -112,7 +114,7 @@ class CustomLoginView(LoginView):
                 return render(request, self.template_name, context)
         return super().dispatch(request, *args, **kwargs)
 
-    def get_context_data(self,** kwargs):
+    def get_context_data(self, **kwargs):
         """Pass lock expiry timestamp and locked identifier to template context for frontend countdown."""
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
@@ -180,6 +182,7 @@ class PasswordResetView(auth_views.PasswordResetView):
     The same confirmation page is shown whether or not the address belongs to
     an account, so the form can't be used to find out who is registered.
     """
+
     template_name = "accounts/password_reset_form.html"
     email_template_name = "accounts/password_reset_email.txt"
     subject_template_name = "accounts/password_reset_subject.txt"
@@ -188,6 +191,7 @@ class PasswordResetView(auth_views.PasswordResetView):
 
 class PasswordResetDoneView(auth_views.PasswordResetDoneView):
     """Tell the user to check their email for the reset link."""
+
     template_name = "accounts/password_reset_done.html"
 
 
@@ -195,6 +199,7 @@ class PasswordResetConfirmView(
     SuccessMessageMixin, auth_views.PasswordResetConfirmView
 ):
     """Let the user choose a new password, then send them to the login page."""
+
     template_name = "accounts/password_reset_confirm.html"
     success_url = reverse_lazy("login")
     success_message = "Your password has been reset. You can now log in."

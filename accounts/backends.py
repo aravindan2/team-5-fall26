@@ -5,6 +5,7 @@ Usernames may contain "@", so a login identifier might match both a username
 and a different user's email address; each match is checked against the password in turn.
 Contains timing-attack protection: hash password even when no matching user exists.
 """
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.db.models import Q
@@ -18,7 +19,7 @@ class EmailOrUsernameBackend(ModelBackend):
     match is checked against the password in turn.
     """
 
-    def authenticate(self, request, username=None, password=None,** kwargs):
+    def authenticate(self, request, username=None, password=None, **kwargs):
         """
         Return the active user whose username or email and password match.
 
