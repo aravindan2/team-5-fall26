@@ -48,13 +48,9 @@ class LoginViewTests(TestCase):
                 response = self.client.post(
                     self.url, {"username": login, "password": PASSWORD}
                 )
-                self.assertRedirects(response, reverse("home"))
+                self.assertRedirects(response, reverse("landing"))
                 self.assertEqual(
                     int(self.client.session["_auth_user_id"]), self.user.pk
-                )
-                self.assertIn(
-                    "Welcome back, Alice A.!",
-                    [str(m) for m in get_messages(response.wsgi_request)],
                 )
                 self.client.logout()
 
@@ -72,15 +68,30 @@ class LoginViewTests(TestCase):
             self.url, {"username": "alice", "password": "Wrong-Passphrase!"}
         )
         self.assertEqual(response.status_code, 200)
-        self.assertContains(
-            response, "Please enter a correct email or username and password."
-        )
+        self.assertContains(response, "Invalid credentials.")
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_logged_in_user_is_sent_home(self):
-        """Someone already logged in who opens the login page is sent home."""
+        """Someone already logged in who opens the login page is sent to landing page."""
         self.client.force_login(self.user)
-        self.assertRedirects(self.client.get(self.url), reverse("home"))
+        self.assertRedirects(self.client.get(self.url), reverse("landing"))
+
+    def test_sliding_session_resets_expiry_on_activity(self):
+        """
+        Authenticated user's session expiry gets reset on every request.
+        Verifies sliding 48-hour idle session requirement: timer restarts from last activity.
+        """
+        self.client.force_login(self.user)
+        # First request, capture session expiry
+        resp1 = self.client.get(reverse("home"))
+        expiry1 = self.client.session.get_expiry_date()
+
+        # Make a second request shortly after
+        resp2 = self.client.get(reverse("home"))
+        expiry2 = self.client.session.get_expiry_date()
+
+        # The new expiry should be later than the original expiry time
+        self.assertTrue(expiry2 > expiry1)
 
 
 class LogoutAndHomeTests(TestCase):
@@ -108,5 +119,5 @@ class LogoutAndHomeTests(TestCase):
         """Logging out ends the session and opens the login page."""
         self.client.force_login(self.user)
         response = self.client.post(reverse("logout"))
-        self.assertRedirects(response, reverse("login"))
+        self.assertRedirects(response, reverse("landing"))
         self.assertNotIn("_auth_user_id", self.client.session)

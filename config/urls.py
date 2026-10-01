@@ -1,5 +1,4 @@
-"""
-URL configuration for config project.
+"""URL configuration for config project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -20,7 +19,14 @@ from django.urls import include, path
 from django.views.generic import TemplateView
 
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="home.html"), name="home"),
+    # Landing page at root "/" (login success target)
+    path(
+        "", TemplateView.as_view(template_name="accounts/landing.html"), name="landing"
+    ),
+    # Move home page to /home/, avoid conflicting with root
+    path(
+        "home/", TemplateView.as_view(template_name="accounts/home.html"), name="home"
+    ),
     path("admin/", admin.site.urls),
     path("accounts/", include("accounts.urls")),
 ]
