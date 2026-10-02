@@ -2,16 +2,30 @@
 
 from django.conf import settings
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.shortcuts import resolve_url, render
 from django.urls import reverse_lazy
-from django.views.generic import CreateView
+from django.views.generic import CreateView, UpdateView
 from django.contrib.auth.views import LoginView
-from django.contrib import messages
 from django.core.cache import cache
 import time
 
-from .forms import LoginForm, RegistrationForm
+from .forms import AccountSettingsForm, LoginForm, RegistrationForm
+
+
+class AccountSettingsView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+    """Allow signed-in users to edit only their own account's profile."""
+
+    form_class = AccountSettingsForm
+    template_name = "accounts/settings.html"
+    success_url = reverse_lazy("account_settings")
+    success_message = "Your account settings have been saved."
+
+    def get_object(self, queryset=None):
+        """Select the account from the session, never from submitted identifiers."""
+        return self.request.user
+
 
 # Lockout configuration
 LOCKOUT_THRESHOLD = 5
@@ -53,8 +67,10 @@ class CustomLoginView(LoginView):
     After successful login, redirects to landing page (landing route).
     After 5 consecutive failed login attempts, blocks login for 10 minutes.
     Lock expiry timestamp is stored in cache so countdown persists on page refresh.
-    Session expires after 48 hours of user inactivity (sliding refresh on every request).
-    Passes lock expiry timestamp and locked login identifier to template for frontend countdown.
+    Session expires after 48 hours of user inactivity (sliding refresh on every
+    request).
+    Passes lock expiry timestamp and locked login identifier to template for frontend
+    countdown.
     Welcome message is shown on landing page AFTER login, not on login page.
     """
 
@@ -115,7 +131,10 @@ class CustomLoginView(LoginView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        """Pass lock expiry timestamp and locked identifier to template context for frontend countdown."""
+        """
+        Pass lock expiry timestamp and locked identifier to
+        template context for frontend countdown.
+        """
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
         context["locked_identifier"] = self.locked_identifier

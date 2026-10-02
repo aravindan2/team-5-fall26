@@ -13,7 +13,10 @@
     .messages .error { background: #ffebe9; color: #a40e26; }
     form div { margin-bottom: 1rem; }
     label { display: block; font-weight: 600; }
-    input { box-sizing: border-box; width: 100%; padding: 0.5rem; font: inherit; border: 1px solid #d0d7de; border-radius: 6px; }
+    input, textarea { box-sizing: border-box; max-width: 100%; width: 100%; padding: 0.5rem; font: inherit; border: 1px solid #d0d7de; border-radius: 6px; }
+    input[type="checkbox"] { width: auto; }
+    textarea { resize: vertical; }
+    .profile-photo { width: 96px; height: 96px; border-radius: 50%; object-fit: cover; }
     .helptext, .helptext ul { font-size: 0.875rem; color: #59636e; }
     .errorlist { color: #a40e26; padding-left: 1.25rem; }
     .button { display: inline-block; padding: 0.5rem 1rem; font: inherit; font-weight: 600; border: 1px solid #d0d7de; border-radius: 6px; cursor: pointer; text-decoration: none; color: #1f2328; background: #f6f8fa; }

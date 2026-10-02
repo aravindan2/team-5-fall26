@@ -49,6 +49,21 @@ class User(AbstractUser):
         blank=True,
         help_text="Optional. 50 characters or fewer.",
     )
+    profile_photo = models.ImageField(
+        "profile photo", upload_to="profile_photos/", blank=True
+    )
+    bio = models.CharField(
+        "bio",
+        max_length=300,
+        blank=True,
+        help_text="Optional. Tell us about yourself in 300 characters or fewer.",
+    )
+    pronouns = models.CharField(
+        "pronouns",
+        max_length=50,
+        blank=True,
+        help_text="Optional. For example, she/her, he/him, or they/them.",
+    )
 
     objects = AccountManager()
 

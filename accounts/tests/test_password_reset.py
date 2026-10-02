@@ -2,7 +2,6 @@
 
 import re
 
-from django.contrib.messages import get_messages
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
@@ -62,7 +61,10 @@ class PasswordResetTests(TestCase):
         self.assertContains(response, "Check your email")
 
     def test_reset_redirects_to_login_and_new_password_works(self):
-        """After a reset, the user lands on password reset complete page and can log in with new password."""
+        """
+        After a reset, the user lands on password reset complete
+        page and can log in with new password.
+        """
         self.request_reset()
         response = self.client.get(self.reset_link(), follow=True)
         self.assertTrue(response.context["validlink"])

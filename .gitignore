@@ -10,6 +10,7 @@ venv/
 .env
 db.sqlite3
 staticfiles/
+media/
 
 # Test coverage
 .coverage

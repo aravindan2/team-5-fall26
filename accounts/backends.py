@@ -2,7 +2,8 @@
 
 Both username and email matching are case-insensitive.
 Usernames may contain "@", so a login identifier might match both a username
-and a different user's email address; each match is checked against the password in turn.
+and a different user's email address; each match is checked against the
+password in turn.
 Contains timing-attack protection: hash password even when no matching user exists.
 """
 
