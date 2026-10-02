@@ -67,8 +67,10 @@ class CustomLoginView(LoginView):
     After successful login, redirects to landing page (landing route).
     After 5 consecutive failed login attempts, blocks login for 10 minutes.
     Lock expiry timestamp is stored in cache so countdown persists on page refresh.
-    Session expires after 48 hours of user inactivity (sliding refresh on every request).
-    Passes lock expiry timestamp and locked login identifier to template for frontend countdown.
+    Session expires after 48 hours of user inactivity (sliding refresh on every
+    request).
+    Passes lock expiry timestamp and locked login identifier to template for frontend
+    countdown.
     Welcome message is shown on landing page AFTER login, not on login page.
     """
 
@@ -129,7 +131,10 @@ class CustomLoginView(LoginView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        """Pass lock expiry timestamp and locked identifier to template context for frontend countdown."""
+        """
+        Pass lock expiry timestamp and locked identifier to
+        template context for frontend countdown.
+        """
         context = super().get_context_data(**kwargs)
         context["lock_expiry"] = self.lock_expiry_timestamp
         context["locked_identifier"] = self.locked_identifier

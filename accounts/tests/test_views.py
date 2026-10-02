@@ -1,7 +1,6 @@
 """Tests for the registration page and custom login page."""
 
 import time
-from django.conf import settings
 from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
@@ -145,7 +144,10 @@ class CustomLoginViewTests(TestCase):
         self.assertTrue(response.context["user"].is_authenticated)
 
     def test_failed_attempt_increments_counter(self):
-        """A single failed login attempt increments the cache counter with correct key."""
+        """
+        A single failed login attempt increments the
+        cache counter with correct key.
+        """
         self.client.post(
             self.login_url, {"username": "testuser", "password": "WrongPass"}
         )
@@ -153,7 +155,10 @@ class CustomLoginViewTests(TestCase):
         self.assertEqual(stored_count, 1)
 
     def test_lockout_after_five_failed_attempts(self):
-        """After 5 consecutive failed logins, user receives lockout message and lock key is set."""
+        """
+        After 5 consecutive failed logins, user receives lockout
+        message and lock key is set.
+        """
         login_data = {"username": "testuser", "password": "wrongpass"}
         attempt_key = f"{self.attempt_key_prefix}testuser"
         lock_key = f"{self.lock_key_prefix}testuser"
@@ -167,11 +172,15 @@ class CustomLoginViewTests(TestCase):
 
         # Check lock key is created
         self.assertIsNotNone(cache.get(lock_key))
-        # Attempt counter stops at 5, sixth request hits dispatch lock and skips increment
+        # Attempt counter stops at 5, sixth request hits
+        # dispatch lock and skips increment
         self.assertEqual(cache.get(attempt_key), 5)
 
     def test_lock_expiry_timestamp_passed_to_template_context_on_lock(self):
-        """When locked, lock_expiry timestamp is injected into template context for frontend countdown."""
+        """
+        When locked, lock_expiry timestamp is injected into
+        template context for frontend countdown.
+        """
         wrong_payload = {"username": "testuser", "password": "WrongPass"}
         for _ in range(5):
             self.client.post(self.login_url, wrong_payload)

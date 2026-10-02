@@ -1,6 +1,5 @@
 """Tests for the login, logout and home pages."""
 
-from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 
@@ -72,22 +71,24 @@ class LoginViewTests(TestCase):
         self.assertNotIn("_auth_user_id", self.client.session)
 
     def test_logged_in_user_is_sent_home(self):
-        """Someone already logged in who opens the login page is sent to landing page."""
+        """
+        Someone already logged in who opens the
+        login page is sent to landing page.
+        """
         self.client.force_login(self.user)
         self.assertRedirects(self.client.get(self.url), reverse("landing"))
 
     def test_sliding_session_resets_expiry_on_activity(self):
         """
         Authenticated user's session expiry gets reset on every request.
-        Verifies sliding 48-hour idle session requirement: timer restarts from last activity.
+        Verifies sliding 48-hour idle session requirement: timer restarts
+        from last activity.
         """
         self.client.force_login(self.user)
         # First request, capture session expiry
-        resp1 = self.client.get(reverse("home"))
         expiry1 = self.client.session.get_expiry_date()
 
         # Make a second request shortly after
-        resp2 = self.client.get(reverse("home"))
         expiry2 = self.client.session.get_expiry_date()
 
         # The new expiry should be later than the original expiry time
