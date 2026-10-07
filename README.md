@@ -35,12 +35,22 @@ content changed, leaves unchanged events untouched, and marks events done
 once their end time has passed. The feed only publishes a rolling two-week
 window, but events stay in the database after they disappear from it.
 
-Run it once to seed your local database, then schedule it hourly with cron
-(use absolute paths, because cron runs with a minimal environment):
+Run it once to seed your local database.
 
-```cron
+## Cron job (hourly sync)
+
+The sync is **not automatic yet** — register it once per machine:
+
+```bash
+crontab -e
+# add this line (absolute paths only; cron has no repo dir and no venv on PATH):
 0 * * * * cd /path/to/team-5-fall26 && /path/to/.venv/bin/python manage.py sync_events >> /var/log/team5_sync.log 2>&1
 ```
+
+- Runs every hour at :00; each run prints a summary to the log file.
+- On failure (feed down, bad payload) exits non-zero and leaves the database untouched.
+- **WSL**: cron is off by default — `sudo service cron start`, then `sudo systemctl enable cron`.
+- Windows: use Task Scheduler instead — `schtasks /sc hourly /tn "Team5EventsSync" /tr "C:\path\to\python manage.py sync_events"`.
 
 ## Checks
 
