@@ -1,0 +1,138 @@
+"""Tests for the landing page and its event list."""
+
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+from django.urls import reverse
+
+from events.models import Event
+from events.views import UPCOMING_EVENT_LIMIT
+
+NYC = ZoneInfo("America/New_York")
+
+
+def make_event(guid, title, **kwargs):
+    """Create an event row with sensible defaults for view tests."""
+    kwargs.setdefault("content_hash", "v" * 64)
+    return Event.objects.create(guid=guid, title=title, **kwargs)
+
+
+class LandingViewTests(TestCase):
+    """The landing page shows events to signed-in visitors only."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            username="alice", email="alice@example.com", password="pass12345"
+        )
+
+    def setUp(self):
+        make_event(
+            "a1",
+            "Alpha Yoga",
+            start_time=datetime(2099, 1, 15, 9, 0, tzinfo=NYC),
+            end_time=datetime(2099, 1, 15, 10, 0, tzinfo=NYC),
+            location="Prospect Park",
+            categories="Fitness | Yoga",
+            description="Stretch and breathe in the park.",
+            event_url="https://example.org/alpha",
+            registration_url="https://example.org/alpha/register",
+            image_url="https://example.org/img/yoga.png",
+        )
+        make_event(
+            "b2",
+            "Beta Birdwatching",
+            start_time=datetime(2099, 1, 16, 10, 0, tzinfo=NYC),
+            end_time=datetime(2099, 1, 16, 12, 0, tzinfo=NYC),
+            park_names="Central Park",
+        )
+        make_event(
+            "c3",
+            "Hidden Past Event",
+            start_time=datetime(2099, 1, 14, 9, 0, tzinfo=NYC),
+            status=Event.Status.DONE,
+        )
+
+    def test_anonymous_visitors_see_the_login_prompt(self):
+        """Logged-out visitors get the welcome page without an event list."""
+        response = self.client.get(reverse("landing"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Please log in")
+        self.assertNotContains(response, "Alpha Yoga")
+        self.assertEqual(list(response.context["events"]), [])
+
+    def test_signed_in_visitors_see_upcoming_events_in_order(self):
+        """Upcoming events are listed soonest first; done events stay hidden."""
+        make_event(
+            "d4",
+            "Undated Event",
+            start_time=None,
+            end_time=datetime(2099, 1, 20, 9, 0, tzinfo=NYC),
+        )
+        self.client.login(username="alice", password="pass12345")
+
+        response = self.client.get(reverse("landing"))
+
+        self.assertContains(response, "Alpha Yoga")
+        self.assertContains(response, "Beta Birdwatching")
+        self.assertContains(response, "Undated Event")
+        self.assertNotContains(response, "Hidden Past Event")
+        self.assertEqual(
+            [event.title for event in response.context["events"]],
+            ["Alpha Yoga", "Beta Birdwatching", "Undated Event"],
+        )
+
+    def test_event_card_shows_details(self):
+        """Cards render the time in NYC local time, place, and useful links."""
+        self.client.login(username="alice", password="pass12345")
+
+        response = self.client.get(reverse("landing"))
+
+        self.assertContains(response, "Jan 15")
+        self.assertContains(response, "9:00 AM")
+        self.assertContains(response, "10:00 AM")
+        self.assertContains(response, "Prospect Park")
+        self.assertContains(response, "Fitness | Yoga")
+        self.assertContains(response, 'href="https://example.org/alpha"')
+        self.assertContains(response, ">Register</a>")
+        self.assertContains(response, "Stretch and breathe in the park.")
+
+    def test_images_use_the_stored_url_or_a_placeholder(self):
+        """Events with an image link to it; the rest fall back to a placeholder."""
+        self.client.login(username="alice", password="pass12345")
+
+        response = self.client.get(reverse("landing"))
+        placeholder = "/static/events/no-image.svg"
+
+        self.assertContains(
+            response,
+            'src="https://example.org/img/yoga.png"',
+        )
+        self.assertContains(response, f'data-placeholder="{placeholder}"')
+        self.assertContains(response, f'src="{placeholder}"')
+
+    def test_empty_state_message_is_shown_without_events(self):
+        """A brand-new install explains that no events are synced yet."""
+        Event.objects.all().delete()
+        self.client.login(username="alice", password="pass12345")
+
+        response = self.client.get(reverse("landing"))
+
+        self.assertContains(response, "No upcoming events yet.")
+
+    def test_event_list_is_capped(self):
+        """Only the first 20 upcoming events are loaded per page view."""
+        for index in range(UPCOMING_EVENT_LIMIT + 5):
+            make_event(
+                f"bulk-{index}",
+                f"Bulk Event {index}",
+                start_time=datetime(2099, 2, 1 + index, 9, 0, tzinfo=NYC),
+            )
+        self.client.login(username="alice", password="pass12345")
+
+        response = self.client.get(reverse("landing"))
+
+        self.assertEqual(len(response.context["events"]), UPCOMING_EVENT_LIMIT)
