@@ -86,9 +86,11 @@ class LoginViewTests(TestCase):
         """
         self.client.force_login(self.user)
         # First request, capture session expiry
+        self.client.get(reverse("home"))
         expiry1 = self.client.session.get_expiry_date()
 
         # Make a second request shortly after
+        self.client.get(reverse("home"))
         expiry2 = self.client.session.get_expiry_date()
 
         # The new expiry should be later than the original expiry time

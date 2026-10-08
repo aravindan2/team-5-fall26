@@ -18,11 +18,11 @@ from django.contrib import admin
 from django.urls import include, path
 from django.views.generic import TemplateView
 
+from events.views import LandingView
+
 urlpatterns = [
-    # Landing page at root "/" (login success target)
-    path(
-        "", TemplateView.as_view(template_name="accounts/landing.html"), name="landing"
-    ),
+    # Landing page at root "/" (login success target); lists upcoming events
+    path("", LandingView.as_view(), name="landing"),
     # Move home page to /home/, avoid conflicting with root
     path(
         "home/", TemplateView.as_view(template_name="accounts/home.html"), name="home"

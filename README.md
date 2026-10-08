@@ -20,6 +20,38 @@ page is at http://127.0.0.1:8000/accounts/login/.
 In development, emails such as password reset links aren't actually sent;
 they're printed in the terminal running `runserver`.
 
+## NYC Parks events
+
+The landing page lists upcoming NYC Parks events imported from the city's
+[open data feed](https://data.cityofnewyork.us/api/v3/views/w3wp-dpdi).
+Sync the database from the feed with:
+
+```bash
+python manage.py sync_events
+```
+
+The command fetches every record, creates new events, updates events whose
+content changed, leaves unchanged events untouched, and marks events done
+once their end time has passed. The feed only publishes a rolling two-week
+window, but events stay in the database after they disappear from it.
+
+Run it once to seed your local database.
+
+## Cron job (hourly sync)
+
+The sync is **not automatic yet** — register it once per machine:
+
+```bash
+crontab -e
+# add this line (absolute paths only; cron has no repo dir and no venv on PATH):
+0 * * * * cd /path/to/team-5-fall26 && /path/to/.venv/bin/python manage.py sync_events >> /var/log/team5_sync.log 2>&1
+```
+
+- Runs every hour at :00; each run prints a summary to the log file.
+- On failure (feed down, bad payload) exits non-zero and leaves the database untouched.
+- **WSL**: cron is off by default — `sudo service cron start`, then `sudo systemctl enable cron`.
+- Windows: use Task Scheduler instead — `schtasks /sc hourly /tn "Team5EventsSync" /tr "C:\path\to\python manage.py sync_events"`.
+
 ## Checks
 
 The badge above shows the combined status of the Black, Flake8, and coverage jobs
