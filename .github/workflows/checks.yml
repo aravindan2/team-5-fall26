@@ -67,6 +67,26 @@ jobs:
     name: Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      POSTGRES_DB: team5
+      POSTGRES_USER: team5
+      POSTGRES_PASSWORD: team5
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: team5
+          POSTGRES_USER: team5
+          POSTGRES_PASSWORD: team5
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U team5 -d team5"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
