@@ -4,15 +4,30 @@
 
 ## Local development
 
-Requires Python 3.11 or newer.
+Requires Python 3.11 or newer and Docker with Docker Compose. Start Docker
+before running these commands.
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements-dev.txt
+cp .env.example .env  # Windows: copy .env.example .env
+docker compose up -d --wait db
 python manage.py migrate
 python manage.py runserver
 ```
+
+The project uses PostgreSQL 17 locally. Django loads database settings from
+`.env`; exported environment variables take precedence. The example credentials
+are for local development. Set `POSTGRES_DB`, `POSTGRES_USER`,
+`POSTGRES_PASSWORD`, `POSTGRES_HOST`, and `POSTGRES_PORT` to use an existing
+PostgreSQL server instead of Docker. Django 5.2 supports PostgreSQL 14 or newer
+with the [Psycopg 3 driver](https://docs.djangoproject.com/en/5.2/ref/databases/#postgresql-notes).
+
+The Compose database stores data in a persistent Docker volume. Stop it with
+`docker compose stop db` and start it again with `docker compose up -d --wait db`.
+Changing the database name, user, or password in `.env` does not update an
+already initialized volume; update the existing database to match.
 
 The sign-up page is at http://127.0.0.1:8000/accounts/register/ and the login
 page is at http://127.0.0.1:8000/accounts/login/.
@@ -57,6 +72,10 @@ crontab -e
 The badge above shows the combined status of the Black, Flake8, and coverage jobs
 in the pull request workflow. Click it to see workflow runs and individual job
 results.
+
+Start PostgreSQL with `docker compose up -d --wait db` before running tests.
+The database user needs permission to create Django's temporary test database;
+the Compose and CI users already have it. CI runs tests against PostgreSQL 17.
 
 Run these before opening a pull request:
 
