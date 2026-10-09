@@ -120,6 +120,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Plans</title>
+    <link rel="stylesheet" href="{% static 'events/cards.css' %}">
+    <link rel="stylesheet" href="{% static 'events/search.css' %}">
     <style>
         :root {
             --ink: #17211c;
@@ -190,35 +192,7 @@
         .event {
             flex: 0 0 var(--card-w);
             scroll-snap-align: start;
-            display: flex;
-            flex-direction: column;
-            background: var(--surface);
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 1px 2px rgba(23, 33, 28, 0.06), 0 8px 20px rgba(23, 33, 28, 0.08);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .event:hover, .event:focus-within {
-            transform: translateY(-3px);
-            box-shadow: 0 2px 4px rgba(23, 33, 28, 0.08), 0 14px 28px rgba(23, 33, 28, 0.12);
-        }
-        .event-thumb { width: 100%; height: 130px; object-fit: cover; background: #e6ebe6; display: block; }
-        .event-body { padding: 0.85rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.25rem; flex: 1; }
-        .event-when { margin: 0; font-size: 0.8rem; font-weight: 600; color: var(--leaf); }
-        .event-body h3 { margin: 0; font-size: 1rem; line-height: 1.3; }
-        .event-body h3 a { color: inherit; text-decoration: none; }
-        .event-body h3 a:hover { text-decoration: underline; }
-        .event-where { margin: 0; font-size: 0.82rem; color: var(--muted); }
-        .event-categories { margin: 0; font-size: 0.78rem; color: var(--muted); }
-        .event-description {
-            margin: 0.3rem 0 0; font-size: 0.85rem; color: #34413a;
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-        }
-        .register {
-            margin-top: auto; padding-top: 0.6rem;
-            font-size: 0.85rem; font-weight: 600; text-decoration: none;
-        }
-        .register:hover { text-decoration: underline; }
 
         .progress { height: 3px; background: var(--line); border-radius: 2px; margin-top: 0.25rem; overflow: hidden; }
         .progress-bar { height: 100%; width: 0; background: var(--leaf); transition: width 0.3s ease; }
@@ -230,6 +204,7 @@
     </style>
 </head>
 <body>
+{% include 'events/_search_form.html' %}
 {% if user.is_authenticated %}
     <div class="topbar">
         <a href="{% url 'account_settings' %}">Account settings</a>
@@ -256,22 +231,7 @@
         <div class="track" id="events-track" tabindex="0">
             {% for event in events %}
             <article class="event">
-                <img class="event-thumb"
-                     data-placeholder="{% static 'events/no-image.svg' %}"
-                     src="{% if event.image_url %}{{ event.image_url }}{% else %}{% static 'events/no-image.svg' %}{% endif %}"
-                     alt=""
-                     loading="lazy"
-                     onerror="this.onerror=null;this.src=this.dataset.placeholder">
-                <div class="event-body">
-                    {% timezone "America/New_York" %}
-                    <p class="event-when">{% if event.start_time %}{{ event.start_time|date:"D, M j" }} &middot; {{ event.start_time|date:"g:i A" }}{% if event.end_time %}&ndash;{{ event.end_time|date:"g:i A" }}{% endif %}{% else %}Date to be announced{% endif %}</p>
-                    {% endtimezone %}
-                    <h3>{% if event.event_url %}<a href="{{ event.event_url }}">{{ event.title }}</a>{% else %}{{ event.title }}{% endif %}</h3>
-                    {% if event.location %}<p class="event-where">{{ event.location }}</p>{% elif event.park_names %}<p class="event-where">{{ event.park_names }}</p>{% endif %}
-                    {% if event.categories %}<p class="event-categories">{{ event.categories }}</p>{% endif %}
-                    {% if event.description %}<p class="event-description">{{ event.description|truncatewords:25 }}</p>{% endif %}
-                    {% if event.registration_url %}<a class="register" href="{{ event.registration_url }}">Register</a>{% endif %}
-                </div>
+                {% include 'events/_event_card_content.html' with link_to_source=True %}
             </article>
             {% endfor %}
         </div>

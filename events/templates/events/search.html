@@ -1,0 +1,43 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% if query %}{{ query }} — {% endif %}Search events</title>
+    <link rel="stylesheet" href="{% static 'events/cards.css' %}">
+    <link rel="stylesheet" href="{% static 'events/search.css' %}">
+</head>
+<body class="search-page">
+    <header>
+        <a href="{% url 'landing' %}">Back to home</a>
+        <h1>Search NYC Parks events</h1>
+        {% include 'events/_search_form.html' %}
+    </header>
+    <main>
+        {% if query %}
+        <h2>Results for “{{ query }}”</h2>
+        {% if events %}
+        <p class="result-count">{{ paginator.count }} event{{ paginator.count|pluralize }} found</p>
+        <div class="search-results">
+            {% for event in events %}
+            <a class="event" href="/events/{{ event.pk }}">
+                {% include 'events/_event_card_content.html' with link_to_source=False %}
+            </a>
+            {% endfor %}
+        </div>
+        {% if is_paginated %}
+        <nav class="pagination" aria-label="Search result pages">
+            {% if page_obj.has_previous %}<a href="?q={{ query|urlencode }}&amp;page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+            <span aria-current="page">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+            {% if page_obj.has_next %}<a href="?q={{ query|urlencode }}&amp;page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </nav>
+        {% endif %}
+        {% else %}
+        <p class="search-empty">No upcoming events match your search. Try another activity, park, or location.</p>
+        {% endif %}
+        {% else %}
+        <p class="search-empty">Enter a search term to find upcoming events.</p>
+        {% endif %}
+    </main>
+</body>
+</html>

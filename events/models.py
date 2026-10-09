@@ -1,6 +1,9 @@
 """Data models for NYC Parks events imported from the city's open data feed."""
 
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+
+from .search import event_search_vector
 
 
 class Event(models.Model):
@@ -54,6 +57,7 @@ class Event(models.Model):
         """List events chronologically by default."""
 
         ordering = ["start_time", "end_time", "title"]
+        indexes = [GinIndex(event_search_vector(), name="event_search_gin")]
 
     def __str__(self):
         """Return the event title for admin listings and debug output."""

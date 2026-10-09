@@ -1,0 +1,7 @@
+<form class="event-search" role="search" method="get" action="{% url 'search' %}">
+    <label for="event-search">Search events</label>
+    <div class="search-controls">
+        <input id="event-search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search by activity, park, or location" required>
+        <button type="submit">Search</button>
+    </div>
+</form>
