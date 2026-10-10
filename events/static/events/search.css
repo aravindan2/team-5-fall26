@@ -1,0 +1,66 @@
+.event-search { margin: 0 0 2rem; }
+.event-search label { display: block; margin-bottom: 0.4rem; font-weight: 600; }
+.search-controls { display: flex; gap: 0.5rem; }
+.search-controls input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--surface);
+}
+.search-controls button {
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: var(--leaf);
+    cursor: pointer;
+}
+.search-controls button:hover { background: var(--leaf-dark); }
+.event-search input:focus-visible, .event-search button:focus-visible {
+    outline: 3px solid var(--sun);
+    outline-offset: 2px;
+}
+
+.search-page {
+    --ink: #17211c;
+    --muted: #5b6862;
+    --canvas: #f3f6f2;
+    --surface: #fff;
+    --line: #d9e1da;
+    --leaf: #1f6f4a;
+    --leaf-dark: #154d34;
+    --sun: #f2b632;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--canvas);
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+    line-height: 1.5;
+}
+.search-page, .search-page * { box-sizing: border-box; }
+.search-page a { color: var(--leaf); }
+.search-page a:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.search-page h1 { margin: 1rem 0; font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.search-page h2 { margin: 0; font-size: 1.25rem; }
+.result-count { color: var(--muted); }
+.search-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+.search-results .event { color: var(--ink); text-decoration: none; }
+.pagination { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-top: 2rem; }
+.search-empty { padding: 1rem 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+
+@media (max-width: 420px) {
+    .search-controls { flex-wrap: wrap; }
+    .search-controls input { flex-basis: 100%; }
+}

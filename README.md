@@ -52,6 +52,20 @@ window, but events stay in the database after they disappear from it.
 
 Run it once to seed your local database.
 
+## Event search
+
+The search bar at the top of the landing page submits to `/search?q=...`.
+Search is public and returns upcoming events, ranked by relevance, with 20
+results per page. It uses PostgreSQL's English full-text search across event
+titles, categories, park names, locations, and descriptions. Titles carry the
+highest weight. Quoted phrases, `OR`, and exclusions such as `yoga -kids` are
+supported.
+
+Run `python manage.py migrate` to create the search GIN index. The database
+automatically maintains the index when events are imported or edited; no
+separate indexing command is needed. Result cards link to `/events/{id}`;
+event detail pages are a future feature and currently return 404.
+
 ## Cron job (hourly sync)
 
 The sync is **not automatic yet** — register it once per machine:
