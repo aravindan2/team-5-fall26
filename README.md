@@ -101,6 +101,15 @@ filters stay exact keyword searches. The "Search for these exact words
 instead" link adds `exact=1` to bypass interpretation. The archive search is
 always a keyword search.
 
+Signed-in searches also power a **Recommended for you** section on the home
+page. Recommendations use normalized search terms and selected borough,
+category, and time filters from the most recent 10 searches. Search history is
+private to the account, kept for up to 30 days and 50 searches, and can be
+cleared from the home page. Anonymous searches and date ranges are not stored.
+Recommendations include upcoming matching events that the user has not already
+registered for or marked as interested in; the direct search results are
+unchanged.
+
 ## Event filters
 
 A filter bar under the search box narrows results by date, time of day,
