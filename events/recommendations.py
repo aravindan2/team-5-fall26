@@ -3,7 +3,6 @@
 from collections import defaultdict
 from datetime import timedelta
 
-from django.db.models import Q
 from django.utils import timezone
 
 from .filters import filter_events
