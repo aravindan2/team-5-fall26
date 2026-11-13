@@ -658,11 +658,7 @@ class LandingView(TemplateView):
                 Event.objects.filter(
                     status=Event.Status.UPCOMING,
                 )
-                .exclude(
-                    pk__in=[
-                        event.pk for event in context["recommendations"]
-                    ]
-                )
+                .exclude(pk__in=[event.pk for event in context["recommendations"]])
                 .annotate(
                     user_is_registered=Exists(
                         Registration.objects.filter(

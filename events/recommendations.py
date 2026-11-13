@@ -50,8 +50,9 @@ def record_search(user, query, filter_pairs):
         filters=normalized_filters,
     )
     stale_ids = list(
-        history.order_by("-created_at", "-pk")
-        .values_list("pk", flat=True)[MAX_SEARCH_HISTORY:]
+        history.order_by("-created_at", "-pk").values_list("pk", flat=True)[
+            MAX_SEARCH_HISTORY:
+        ]
     )
     if stale_ids:
         history.filter(pk__in=stale_ids).delete()
@@ -79,12 +80,8 @@ def recommended_events(user, limit=RECOMMENDATION_LIMIT):
         )
         .exclude(title__istartswith="cancelled")
         .exclude(title__istartswith="canceled")
-        .exclude(
-            pk__in=Registration.objects.filter(user=user).values("event_id")
-        )
-        .exclude(
-            pk__in=EventInterest.objects.filter(user=user).values("event_id")
-        )
+        .exclude(pk__in=Registration.objects.filter(user=user).values("event_id"))
+        .exclude(pk__in=EventInterest.objects.filter(user=user).values("event_id"))
     )
 
     scores = defaultdict(float)
